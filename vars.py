@@ -45,6 +45,10 @@ BUILDINGFLOORS = [1, 1, 1, 2, 3, 3]
 BUILDINGNAMES = ['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'Foxtrot', 'Golf', 'Hotel', 'India']
 BUILDINGVALUES = [1000, 1000, 1000, 2000, 3000, 4000]
 
+COSTADDFLOOR = 4000
+COSTTRANSFORM = 1000
+COSTDESTROY = [2000, 4000, 5500, 7000]
+COSTBUILD = 6000
 
 class Font():
     def __init__(self, aFile, aSize):
@@ -60,9 +64,11 @@ class Font():
 class Text():
     def __init__(self, someText, aFontFile, aFontSize, textColor=WHITE, bgColor=None):
         self.text = someText
-        self.selected = False   #TODO: Add selected change in draw
+        self.selected = False
+        self.selectedSurf = None
         self.loc = [0, 0]
         self.font = Font(aFontFile, aFontSize)
+        self.fontSize = aFontSize
         self.surf = None
         self.rect = None
         self.color = textColor
@@ -72,22 +78,45 @@ class Text():
     #Initialize fontRect
     def Setup(self):
         if self.bgColor is not None:
-            self.surf = self.font.font.render(self.text, 1, self.color, self.bgColor).convert()
+            self.surf = self.font.font.render(self.text, 1,
+                                              self.color,
+                                              self.bgColor).convert()
+            self.selectedSurf = self.font.font.render(self.text, 1,
+                                                      InvertColor(self.color),
+                                                      InvertColor(self.bgColor)).convert()
         else:
-            self.surf = self.font.font.render(self.text, 0, self.color).convert()
+            self.surf = self.font.font.render(self.text, 0,
+                                              self.color).convert()
+            self.selectedSurf = self.font.font.render(self.text, 0,
+                                                      InvertColor(self.color)).convert()
 
         self.surf.set_alpha(255)
         self.rect = self.surf.get_rect()
 
     #Draws border if selected, else just output to DisplaySurf
     def Draw(self, aSurf=DISP):
-        if not self.selected:
-            pass
-        aSurf.blit(self.surf, self.rect)
+        if self.selected:
+            aSurf.blit(self.selectedSurf, self.rect)
+        else:
+            aSurf.blit(self.surf, self.rect)
 
-    def ChangeSize(self, increment):
-        #TODO: changes size of font, change to font as well
-        pass
+    def ChangeSize(self, increment, newFile):
+        tempRect = self.rect
+        self.font = Font(newFile, self.fontSize + increment)
+        if self.bgColor is not None:
+            self.surf = self.font.font.render(self.text, 1,
+                                              self.color,
+                                              self.bgColor).convert()
+            self.selectedSurf = self.font.font.render(self.text, 1,
+                                                      InvertColor(self.color),
+                                                      InvertColor(self.bgColor)).convert()
+        else:
+            self.surf = self.font.font.render(self.text, 0,
+                                              self.color).convert()
+            self.selectedSurf = self.font.font.render(self.text, 0,
+                                                      InvertColor(self.color)).convert()
+        self.surf.set_alpha(255)
+        self.rect.topleft = tempRect.topleft
 
     def ChangeAlpha(self, aVal):
         self.surf.set_alpha(aVal)
@@ -106,11 +135,14 @@ class Button():
         self.textColor = textColor
         self.pushed = False
         self.counter = 0
+        self.void = False
 
     def LocCollide(self, aPos):
-        self.pushed = self.rect.collidepoint(aPos)
-        self.counter = 6
-        return self.pushed
+        if not self.void:
+            self.pushed = self.rect.collidepoint(aPos)
+            self.counter = 6
+            return self.pushed
+        return False
 
     def Draw(self):
         if self.pushed:
@@ -124,3 +156,22 @@ class Button():
             pygame.draw.rect(DISP, self.textColor, self.rect.inflate(2, 2))
             pygame.draw.rect(DISP, self.color, self.rect)
             self.text[0].Draw()
+            if self.void:
+                tempSurf = pygame.Surface((self.rect.width, self.rect.height))
+                tempSurf.set_alpha(200)
+                tempSurf.fill(DarkenColor(self.color))
+                DISP.blit(tempSurf, self.rect.topleft)
+
+
+def DarkenColor(aColor):
+    temp = copy.deepcopy(aColor)
+    return temp[0]/2, temp[1]/2, temp[2]/2, temp[3]
+
+def TransparentColor(aColor, aVal):
+    temp = copy.deepcopy(aColor)
+    return temp[0], temp[1], temp[2], temp[3]*aVal
+
+
+def InvertColor(aColor):
+    temp = copy.deepcopy(aColor)
+    return 255-temp[0], 255-temp[1], 255-temp[2], temp[3]

@@ -1,0 +1,7 @@
+TODO
+buildings assign influence to other building values (done per block?)
+add floor to building at a cost *DONT IF ALREADY HAVE ONE
+destroy a building for a cost
+transform a building for a cost
+
+Building a building doesn't work properly

@@ -50,16 +50,16 @@ def main(devCheck=False):
         vars.FPSCLOCK.tick(vars.FPS)
 
 
-def Parser(fileName, theMap):
+def Parser(fileName, aMap):
     fileData = open(fileName, 'r')
     for line in fileData:
         if len(line) != 1:
             if line[0] == '!':
-                theMap.AddBlock(line[1:])
-            elif theMap.size == 0:
-                theMap.size = int(line[0])
-            elif theMap.blockSize == 0:
-                theMap.blockSize = int(line[0])
+                aMap.AddBlock(line[1:])
+            elif aMap.size == 0:
+                aMap.size = int(line[0])
+            elif aMap.blockSize == 0:
+                aMap.blockSize = int(line[0])
             elif line[0] == '#':
                 pass
             else:
@@ -79,45 +79,43 @@ class Selected():
         self.shape = None
         self.price = None
         self.buttons = []
+        self.empty = False
 
     def Init(self, newSelected):
+        self.__init__()
         self.selected = newSelected
         self.selected.dirty = True
-        self.Update()
+        if self.selected.floors == 0:
+            self.empty = True
 
-        temp = pygame.Rect(self.shape.rect.left, self.price.rect.bottom + 10, 50, 30)
-
+        #Used for Button placement
+        temp = pygame.Rect(vars.DETAILSX+10, vars.DETAILSY+48+(32*5)+10, 50, 30)
         self.buttons.append(vars.Button('Buy', temp))
-        self.buttons.append(vars.Button('Sell', pygame.Rect(temp.left + 100, temp.top, 50, 30)))
+        self.buttons.append(vars.Button('Sell',
+                                        pygame.Rect(temp.left + 180,
+                                                    temp.top, 50, 30)))
+        self.buttons.append(vars.Button('Add a Floor',
+                                        pygame.Rect(temp.left,
+                                                    temp.bottom + 10, 110, 30)))
+        self.buttons.append(vars.Button('Transform',
+                                        pygame.Rect(temp.left + 120,
+                                                    temp.bottom + 10, 100, 30)))
+        self.buttons.append(vars.Button('Destroy',
+                                        pygame.Rect(temp.left,
+                                                    temp.bottom + 80, 80, 30)))
+        self.buttons.append(vars.Button('Build',
+                                        pygame.Rect(temp.left + 170,
+                                                    temp.bottom + 80, 60, 30)))
 
-    def Input(self, aType, aPos):
-        if aType == MOUSEBUTTONDOWN:
-            for i in range(len(self.buttons)):
-                if self.buttons[i].LocCollide(aPos):
-                    if i == 0 and self.selected.owner != player.name:
-                        self.selected.owner = player.name
-                        self.selected.dirty = True
-                        player.cash -= self.selected.value * 1.25
-                        player.dirty = True
-                    elif i == 1 and self.selected.owner == player.name:
-                        self.selected.owner = 'The Bank'
-                        self.selected.dirty = True
-                        player.cash += self.selected.value * .75
-                        player.dirty = True
+        self.Update()
 
     def Update(self):
         if self.selected is not None and self.selected.dirty:
+            #Update all the selected info text
             self.title = vars.Text(self.selected.name, None, 48,
-                               vars.WHITE, vars.VDKGREY)
+                                   vars.WHITE, vars.VDKGREY)
             self.address = vars.Text('Feature to be Coded.', None, 32,
                                      vars.WHITE, vars.VDKGREY)
-            self.type = vars.Text(self.selected.type + ' Building', None, 32,
-                                  vars.WHITE, vars.VDKGREY)
-            self.shape = vars.Text(self.selected.shape, None, 32,
-                                   vars.WHITE, vars.VDKGREY)
-            temp = str(self.selected.floors) + ' + ' + str(self.selected.additionalFloor)
-            self.floors = vars.Text(temp + ' floors', None, 32,
-                                    vars.WHITE, vars.VDKGREY)
             self.owner = vars.Text('Owner: ' + self.selected.owner, None, 32,
                                    vars.WHITE, vars.VDKGREY)
             if self.selected.owner == player.name:
@@ -126,14 +124,91 @@ class Selected():
                 adjustVal = 1.25
             self.price = vars.Text('Price: ' + str(self.selected.value*adjustVal), None, 32,
                                    vars.WHITE, vars.VDKGREY)
+
+            #Reset all the rect positioning
             self.title.rect.topleft = [vars.DETAILSX + 10, vars.DETAILSY + 10]
-            self.owner.rect.topleft = self.title.rect.bottomleft
-            self.address.rect.topleft = self.owner.rect.bottomleft
-            self.type.rect.topleft = self.address.rect.bottomleft
-            self.shape.rect.topleft = self.type.rect.bottomleft
-            self.floors.rect.topleft = self.shape.rect.bottomleft
-            self.price.rect.topleft = self.floors.rect.bottomleft
+            self.address.rect.topleft = self.title.rect.bottomleft
+            self.owner.rect.topleft = self.address.rect.bottomleft
+            self.price.rect.topleft = self.owner.rect.bottomleft
+
+            #If this isn't an empty lot we need the building information
+            if not self.empty:
+                self.type = vars.Text(self.selected.type + ' Building', None, 32,
+                                      vars.WHITE, vars.VDKGREY)
+                self.shape = vars.Text(self.selected.shape, None, 32,
+                                       vars.WHITE, vars.VDKGREY)
+                temp = str(self.selected.floors) + ' + ' + \
+                    str(int(self.selected.additionalFloor))
+                self.floors = vars.Text(temp + ' floors', None, 32,
+                                        vars.WHITE, vars.VDKGREY)
+
+                self.type.rect.topleft = self.price.rect.bottomleft
+                self.shape.rect.topleft = self.type.rect.bottomleft
+                self.floors.rect.topleft = self.shape.rect.bottomleft
+            #Reset the dirty flag
             self.selected.dirty = False
+
+            #Readjust the button voids
+            for i in range(len(self.buttons)):
+                if i == 0:
+                    if self.selected.owner == player.name:
+                        self.buttons[i].void = True
+                    else:
+                        self.buttons[i].void = False
+                else:
+                    if self.selected.owner == player.name:
+                        self.buttons[i].void = False
+                    else:
+                        self.buttons[i].void = True
+            if (self.selected.owner == player.name
+                and (self.selected.type != 'Retail'
+                     or self.selected.type != 'Residential')):
+                self.buttons[3].void = True
+            if self.empty and self.selected.owner == player.name:
+                self.buttons[4].void = True
+                self.buttons[5].void = False
+            elif not self.empty and self.selected.owner == player.name:
+                self.buttons[4].void = False
+                self.buttons[5].voids = True
+
+    def Input(self, aType, aPos):
+        if aType == MOUSEBUTTONDOWN:
+            for i in range(len(self.buttons)):
+                if self.buttons[i].LocCollide(aPos):
+                    if i == 0:
+                        self.selected.owner = player.name
+                        self.selected.dirty = True
+                        player.cash -= self.selected.value * 1.25
+                        player.dirty = True
+                    elif i == 1:
+                        self.selected.owner = 'The Bank'
+                        self.selected.dirty = True
+                        player.cash += self.selected.value * .75
+                        player.dirty = True
+                    elif i == 2:
+                        self.selected.additionalFloor = True
+                        self.selected.dirty = True
+                        player.cash -= vars.COSTADDFLOOR
+                        player.dirty = True
+                    elif i == 3:
+                        if self.selected.type == 'Retail':
+                            self.selected.type = 'Residential'
+                            self.selected.dirty = True
+                            player.cash -= vars.COSTTRANSFORM
+                            player.dirty = True
+                        elif self.selected.type == 'Residential':
+                            self.selected.type = 'Retail'
+                            self.selected.dirty = True
+                            player.cash -= vars.COSTTRANSFORM
+                            player.dirty = True
+                        else:
+                            print('ERROR E01: Building is not of the right type to Transform')
+                    elif i == 4:
+                        player.cash -= vars.COSTDESTROY[self.selected.floors+self.selected.additionalFloor]
+                        self.Init(theMap.blocks[self.selected.block].DestroyBuilding(self.selected.index))
+                    elif i == 5:
+                        player.cash -= vars.COSTBUILD
+                        self.Init(theMap.blocks[self.selected.block].AddBuilding(self.selected.spaces))
 
     def Draw(self):
         pygame.draw.rect(vars.DISP, vars.WHITE,
@@ -141,11 +216,12 @@ class Selected():
         if self.selected is not None:
             self.title.Draw()
             self.address.Draw()
-            self.type.Draw()
-            self.shape.Draw()
-            self.floors.Draw()
             self.owner.Draw()
             self.price.Draw()
+            if not self.empty:
+                self.type.Draw()
+                self.shape.Draw()
+                self.floors.Draw()
             for i in range(len(self.buttons)):
                 self.buttons[i].Draw()
 
@@ -166,6 +242,7 @@ class Map():
     def AddBlock(self, aLine):
         if len(aLine) != (self.blockSize*self.blockSize)+1:
             print('Error D02: Map Data File not properly configured')
+            print(str(len(aLine)))
         newBlock = Block(len(self.blocks))
         refString = 'abcdefghi'
         for i in range(len(refString)):
@@ -174,7 +251,7 @@ class Map():
                 if aLine[j] == refString[i]:
                     temp.append(j)
             if len(temp) != 0:
-                newBuilding = Building(len(self.blocks), temp)
+                newBuilding = Building(len(self.blocks), i, temp)
                 newBlock.buildings.append(newBuilding)
         for i in range(len(newBlock.buildings)):
             newBlock.buildings[i].name += vars.BUILDINGNAMES[i]
@@ -217,6 +294,7 @@ class Block():
 
     def Update(self):
         for i in range(len(self.buildings)):
+        #TODO: Update buildings Influence by Block
             pass
 
     def Draw(self):
@@ -224,16 +302,44 @@ class Block():
         for i in range(len(self.buildings)):
             self.buildings[i].Draw()
 
+    def DestroyBuilding(self, buildingIndex):
+        destroyed = self.buildings.pop(buildingIndex)
+        for i in range(len(destroyed.spaces)):
+            self.emptyPlots.append(destroyed.spaces[i])
+            temp = Building(self.loc, len(self.buildings),
+                            [destroyed.spaces[i]], 'Empty',
+                            None, 0, 0)
+            self.buildings.append(temp)
+        return temp
+
+    def AddBuilding(self, space):
+        done = False
+        popped = False
+
+        for i in range(len(self.buildings)):
+            if self.buildings[i].floors == 0 and not done:
+                newBuilding = Building(self.loc, i, space,
+                                       'Residential', None, 1, 0)
+                self.buildings.insert(i, newBuilding)
+                done = True
+            elif done and not popped:
+                self.buildings[i].index += 1
+                if self.buildings[i].spaces == space:
+                    self.buildings.pop(i)
+                    popped = True
+        return newBuilding
+
 
 class Building():
-    def __init__(self, theBlock, theSpaces, theType=None,
-                 theVal=None, theFloors=None, addFloor=0):
+    def __init__(self, theBlock, theIndex, theSpaces, theType=None,
+                 theVal=None, theFloors=None, addFloor=False):
         #Things needed to be initialized
-        self.type = theType                 # res, retail, business, gov, park, mega
+        self.type = theType                 # res, retail, business, gov, park, mega, empty
         self.value = theVal                 # flat sale price of building
         self.floors = theFloors
         self.additionalFloor = addFloor
         self.block = theBlock
+        self.index = theIndex
         self.spaces = theSpaces             # number of spaces being taken up on the block
         #Things inferred or defined later
         self.rooms = None                   # number of apts, offices, stores
@@ -286,8 +392,13 @@ class Building():
             self.color = vars.YELLOW
         elif self.type == 'Office':
             self.color = vars.BLUE
-        else:
+        elif self.type == 'Parking':
             self.color = vars.BLACK
+        elif self.type == 'Empty':
+            self.color = vars.LTGREY
+        else:
+            self.color = vars.RED
+            print('Error E02: Building Type not appropriately setup')
 
     def FindShape(self):
         if len(self.spaces) == 1:
@@ -354,12 +465,12 @@ class Owner():
         self.creditLine = 10000
         self.cash = 40000
         self.isPlayer = True
-        self.playerText.append(vars.Text(self.name, None, 48))
-        self.playerText.append(vars.Text('  Debt / Credit ', None, 32))
+        self.playerText.append(vars.Text(self.name, None, 48, vars.WHITE, vars.VDKGREY))
+        self.playerText.append(vars.Text('  Debt / Credit ', None, 32, vars.WHITE, vars.VDKGREY))
         self.playerText.append(vars.Text(' $ ' + str(self.debt) +
-                                         ' / ' + str(self.creditLine), None, 32))
-        self.playerText.append(vars.Text('  Cash ', None, 32))
-        self.playerText.append(vars.Text(' $ ' + str(self.cash), None, 32))
+                                         ' / ' + str(self.creditLine), None, 32, vars.WHITE, vars.VDKGREY))
+        self.playerText.append(vars.Text('  Cash ', None, 32, vars.WHITE, vars.VDKGREY))
+        self.playerText.append(vars.Text(' $ ' + str(self.cash), None, 32, vars.WHITE, vars.VDKGREY))
         self.playerText[0].rect.topleft = (vars.INFOX + 10, vars.INFOY + 10)
         for i in range(len(self.playerText)):
             if i != 0:
