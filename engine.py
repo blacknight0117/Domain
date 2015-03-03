@@ -150,26 +150,26 @@ class Selected():
 
             #Readjust the button voids
             for i in range(len(self.buttons)):
-                if i == 0:
-                    if self.selected.owner == player.name:
-                        self.buttons[i].void = True
-                    else:
-                        self.buttons[i].void = False
+                self.buttons[i].void = False
+            if self.selected.owner == player.name:
+                self.buttons[0].void = True
+                self.buttons[1].void = False
+                if self.selected.additionalFloor:
+                    self.buttons[2].void = True
+                if (self.selected.type != 'Retail' and
+                        self.selected.type != 'Residential'):
+                    self.buttons[3].void = True
+                if self.empty:
+                    self.buttons[4].void = True
+                    self.buttons[5].void = False
                 else:
-                    if self.selected.owner == player.name:
-                        self.buttons[i].void = False
-                    else:
+                    self.buttons[4].void = False
+                    self.buttons[5].void = True
+            else:
+                self.buttons[0].void = False
+                for i in range(len(self.buttons)):
+                    if i != 0:
                         self.buttons[i].void = True
-            if (self.selected.owner == player.name
-                and (self.selected.type != 'Retail'
-                     or self.selected.type != 'Residential')):
-                self.buttons[3].void = True
-            if self.empty and self.selected.owner == player.name:
-                self.buttons[4].void = True
-                self.buttons[5].void = False
-            elif not self.empty and self.selected.owner == player.name:
-                self.buttons[4].void = False
-                self.buttons[5].voids = True
 
     def Input(self, aType, aPos):
         if aType == MOUSEBUTTONDOWN:
@@ -185,30 +185,35 @@ class Selected():
                         self.selected.dirty = True
                         player.cash += self.selected.value * .75
                         player.dirty = True
-                    elif i == 2:
+                    elif i == 2 and not self.selected.additionalFloor:
                         self.selected.additionalFloor = True
                         self.selected.dirty = True
+                        self.selected.Update()
                         player.cash -= vars.COSTADDFLOOR
                         player.dirty = True
                     elif i == 3:
                         if self.selected.type == 'Retail':
-                            self.selected.type = 'Residential'
+                            self.selected.ChangeType('Residential')
                             self.selected.dirty = True
+                            self.selected.Update()
                             player.cash -= vars.COSTTRANSFORM
                             player.dirty = True
                         elif self.selected.type == 'Residential':
-                            self.selected.type = 'Retail'
+                            self.selected.ChangeType('Retail')
                             self.selected.dirty = True
+                            self.selected.Update()
                             player.cash -= vars.COSTTRANSFORM
                             player.dirty = True
                         else:
                             print('ERROR E01: Building is not of the right type to Transform')
                     elif i == 4:
-                        player.cash -= vars.COSTDESTROY[self.selected.floors+self.selected.additionalFloor]
+                        player.cash -= vars.COSTDESTROY[self.selected.floors+int(self.selected.additionalFloor)-1]
+                        player.dirty = True
                         self.Init(theMap.blocks[self.selected.block].DestroyBuilding(self.selected.index))
                     elif i == 5:
                         player.cash -= vars.COSTBUILD
-                        self.Init(theMap.blocks[self.selected.block].AddBuilding(self.selected.spaces))
+                        player.dirty = True
+                        self.Init(theMap.blocks[self.selected.block].AddBuilding(self.selected.index))
 
     def Draw(self):
         pygame.draw.rect(vars.DISP, vars.WHITE,
@@ -264,6 +269,10 @@ class Map():
                     for k in range(len(self.blocks[i].buildings[j].rects)):
                         if self.blocks[i].buildings[j].rects[k].collidepoint(aPos):
                             return self.blocks[i].buildings[j]
+                for j in range(len(self.blocks[i].emptyPlots)):
+                    for k in range(len(self.blocks[i].emptyPlots[j].rects)):
+                        if self.blocks[i].emptyPlots[j].rects[k].collidepoint(aPos):
+                            return self.blocks[i].emptyPlots[j]
         for i in range(len(self.mapButtons)):
             if self.mapButtons[i].LocCollide(aPos):
                 if i == 0:
@@ -301,32 +310,28 @@ class Block():
         pygame.draw.rect(vars.DISP, vars.LTGREY, self.rect)
         for i in range(len(self.buildings)):
             self.buildings[i].Draw()
+        for i in range(len(self.emptyPlots)):
+            self.emptyPlots[i].Draw()
 
     def DestroyBuilding(self, buildingIndex):
         destroyed = self.buildings.pop(buildingIndex)
         for i in range(len(destroyed.spaces)):
-            self.emptyPlots.append(destroyed.spaces[i])
-            temp = Building(self.loc, len(self.buildings),
+            temp = Building(self.loc, len(self.emptyPlots),
                             [destroyed.spaces[i]], 'Empty',
-                            None, 0, 0)
-            self.buildings.append(temp)
+                            None, 0, False)
+            temp.owner = destroyed.owner
+            self.emptyPlots.append(temp)
         return temp
 
-    def AddBuilding(self, space):
-        done = False
-        popped = False
-
-        for i in range(len(self.buildings)):
-            if self.buildings[i].floors == 0 and not done:
-                newBuilding = Building(self.loc, i, space,
-                                       'Residential', None, 1, 0)
-                self.buildings.insert(i, newBuilding)
-                done = True
-            elif done and not popped:
-                self.buildings[i].index += 1
-                if self.buildings[i].spaces == space:
-                    self.buildings.pop(i)
-                    popped = True
+    def AddBuilding(self, index):
+        temp = self.emptyPlots.pop(index)
+        if len(self.emptyPlots) != 0:
+            for i in range(len(self.emptyPlots)-index):
+                self.emptyPlots[i+index].index -= 1
+        newBuilding = Building(temp.block, len(self.buildings), temp.spaces,
+                               'Residential', None, 1)
+        newBuilding.owner = temp.owner
+        self.buildings.append(newBuilding)
         return newBuilding
 
 
@@ -359,6 +364,8 @@ class Building():
         if self.type is None:
             self.ChangeType(vars.BUILDINGTYPES[
                 random.randrange(len(vars.BUILDINGTYPES))])
+        else:
+            self.ChangeType(self.type)
         if self.floors is None:
             self.floors = vars.BUILDINGFLOORS[
                 random.randrange(len(vars.BUILDINGFLOORS))]
@@ -366,7 +373,7 @@ class Building():
             self.value = vars.BUILDINGVALUES[
                 random.randrange(len(vars.BUILDINGVALUES))]
 
-        self.rooms = 4 * self.floors
+        self.rooms = 4 * (self.floors + int(self.additionalFloor))
 
         self.rects = FindLargestRects(self.spaces, self.block)
         if len(self.rects) == 0:
@@ -377,12 +384,26 @@ class Building():
             newRect.top += int(self.spaces[0] / 3) * 56
             self.rects.append(newRect)
 
-        self.floorRects.append(pygame.Rect(self.rects[0].left+1,
-                                           self.rects[0].top+1, 5, 5))
-        for i in range(self.floors + self.additionalFloor):
-            if i != 0:
+        if self.floors != 0:
+            self.floorRects.append(pygame.Rect(self.rects[0].left+1,
+                                               self.rects[0].top+1, 5, 5))
+            for i in range(self.floors + int(self.additionalFloor)):
+                if i != 0:
+                    self.floorRects.append(pygame.Rect(self.floorRects[i-1].left,
+                                                       self.floorRects[i-1].bottom + 1, 5, 5))
+
+    def Update(self):
+        if self.dirty:
+            if len(self.floorRects) >= self.floors + int(self.additionalFloor):
+                self.floorRects = []
+            if not self.floorRects:
+                self.floorRects.append(pygame.Rect(self.rects[0].left+1,
+                                                   self.rects[0].top+1, 5, 5))
+            for i in range(self.floors + int(self.additionalFloor) - len(self.floorRects)):
                 self.floorRects.append(pygame.Rect(self.floorRects[i-1].left,
                                                    self.floorRects[i-1].bottom + 1, 5, 5))
+            print(len(self.floorRects))
+            self.ChangeType(self.type)
 
     def ChangeType(self, newType):
         self.type = newType
