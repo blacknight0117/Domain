@@ -145,8 +145,6 @@ class Selected():
                 self.type.rect.topleft = self.price.rect.bottomleft
                 self.shape.rect.topleft = self.type.rect.bottomleft
                 self.floors.rect.topleft = self.shape.rect.bottomleft
-            #Reset the dirty flag
-            self.selected.dirty = False
 
             #Readjust the button voids
             for i in range(len(self.buttons)):
@@ -170,6 +168,11 @@ class Selected():
                 for i in range(len(self.buttons)):
                     if i != 0:
                         self.buttons[i].void = True
+
+            #Ensure the selected building/plot is highlighted
+            self.selected.highlight = True
+            #Reset the dirty flag
+            self.selected.dirty = False
 
     def Input(self, aType, aPos):
         if aType == MOUSEBUTTONDOWN:
@@ -238,11 +241,14 @@ class Map():
         self.blocks = []
         self.showFloors = True
         self.showSpecial = True
+        self.showOwned = True
         self.mapButtons = []
         self.mapButtons.append(vars.Button('Floors',
                                            pygame.Rect(910, vars.WINH-35, 60, 25)))
         self.mapButtons.append(vars.Button('Specials',
                                            pygame.Rect(980, vars.WINH-35, 65, 25)))
+        self.mapButtons.append(vars.Button('Owned',
+                                           pygame.Rect(1060, vars.WINH-35, 60, 25)))
 
     def AddBlock(self, aLine):
         if len(aLine) != (self.blockSize*self.blockSize)+1:
@@ -279,6 +285,8 @@ class Map():
                     self.showFloors = not self.showFloors
                 elif i == 1:
                     self.showSpecial = not self.showSpecial
+                elif i == 2:
+                    self.showOwned = not self.showOwned
         return None
 
     def Draw(self):
@@ -394,15 +402,15 @@ class Building():
 
     def Update(self):
         if self.dirty:
-            if len(self.floorRects) >= self.floors + int(self.additionalFloor):
-                self.floorRects = []
-            if not self.floorRects:
-                self.floorRects.append(pygame.Rect(self.rects[0].left+1,
-                                                   self.rects[0].top+1, 5, 5))
-            for i in range(self.floors + int(self.additionalFloor) - len(self.floorRects)):
-                self.floorRects.append(pygame.Rect(self.floorRects[i-1].left,
-                                                   self.floorRects[i-1].bottom + 1, 5, 5))
-            print(len(self.floorRects))
+            #Make sure the floorRects are properly filled up
+            self.floorRects = []
+            self.floorRects.append(pygame.Rect(self.rects[0].left+1,
+                                               self.rects[0].top+1, 5, 5))
+            for i in range(self.floors + int(self.additionalFloor)):
+                if i != 0:
+                    self.floorRects.append(pygame.Rect(self.floorRects[i-1].left,
+                                                       self.floorRects[i-1].bottom + 1, 5, 5))
+
             self.ChangeType(self.type)
 
     def ChangeType(self, newType):
@@ -444,9 +452,16 @@ class Building():
         if theMap.showFloors:
             for i in range(len(self.floorRects)):
                 pygame.draw.rect(vars.DISP, vars.WHITE, (self.floorRects[i]))
+                if i == len(self.floorRects)-1 and self.additionalFloor:
+                    pygame.draw.rect(vars.DISP, vars.ZRED, (self.floorRects[i]))
         if theMap.showSpecial and self.type == 'Special':
             pygame.draw.circle(vars.DISP, vars.BLACK,
                                (self.rects[0].right-5, self.rects[0].top+5), 4)
+        if theMap.showOwned and self.owner == player.name:
+            pygame.draw.circle(vars.DISP, vars.ZRED,
+                               (self.rects[0].centerx, self.rects[0].centery), 8)
+            pygame.draw.rect(vars.DISP, vars.WHITE,
+                             (self.rects[0].centerx-4, self.rects[0].centery-4, 8, 8))
 
 
 class BuildingType():       # NOT USED YET

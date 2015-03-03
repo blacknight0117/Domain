@@ -34,9 +34,11 @@ DKGREY  = (100, 100, 100, 255)
 VDKGREY = (50, 50, 50, 255)
 RED     = (100, 0, 0, 255)
 BTRED   = (200, 0, 0, 255)
+ZRED    = (255, 0, 0, 255)
 BLUE    = (0, 0, 100, 255)
 GREEN   = (0, 100, 0, 255)
 YELLOW  = (100, 100, 0, 255)
+BTYELL  = (255, 255, 0, 255)
 
 #Finding random building info
 BUILDINGTYPES = ['Residential', 'Residential', 'Residential', 'Residential', 'Retail',
@@ -166,6 +168,7 @@ class Button():
 def DarkenColor(aColor):
     temp = copy.deepcopy(aColor)
     return temp[0]/2, temp[1]/2, temp[2]/2, temp[3]
+
 
 def TransparentColor(aColor, aVal):
     temp = copy.deepcopy(aColor)

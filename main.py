@@ -23,6 +23,7 @@ def main():
 
     mainMenu.main()
 
+
 #quick little screen that should last for ~2 seconds
 def SplashScreen(Surface, FPSClock):
     looper = True
