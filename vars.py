@@ -41,9 +41,9 @@ YELLOW  = (100, 100, 0, 255)
 BTYELL  = (255, 255, 0, 255)
 
 #Finding random building info
-BUILDINGTYPES = ['Residential', 'Residential', 'Residential', 'Residential', 'Retail',
-                 'Retail', 'Retail', 'Office', 'Office', 'Parking', 'Parking']
-BUILDINGFLOORS = [1, 1, 1, 2, 3, 3]
+BUILDINGTYPES = ['Residential', 'Residential', 'Residential', 'Residential', 'Residential',
+                 'Retail', 'Retail', 'Retail', 'Retail', 'Office', 'Office', 'Parking']
+BUILDINGFLOORS = [1, 1, 1, 1, 1, 1, 2, 2, 2, 3]
 BUILDINGNAMES = ['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'Foxtrot', 'Golf', 'Hotel', 'India']
 BUILDINGVALUES = [1000, 1000, 1000, 2000, 3000, 4000]
 
@@ -51,6 +51,7 @@ COSTADDFLOOR = 4000
 COSTTRANSFORM = 1000
 COSTDESTROY = [2000, 4000, 5500, 7000]
 COSTBUILD = 6000
+
 
 class Font():
     def __init__(self, aFile, aSize):

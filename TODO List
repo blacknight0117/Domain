@@ -3,8 +3,56 @@ buildings assign influence to other building values (done per block?)
     status bar telling how efficient the income is...
     info stating inc/month
     info stating player total income/month
-variable amountt of tenants
+
+variable amount of tenants
+
+Add 3-5 Insurance buildings. (Buildings cost excessively, 1000x normal?)
 
 
 
+DESIGN
+building influence design
+Each block adds up building Gives/Needs
+[People, Day Parking, Night Parking, Sales, Work)
+for each block, every  stat is compiled
+every week, a random direction is chosen (1 of 8)
+excess supplies will go to each direction until it's filled
+if excess still left over apply to own block and slowly change block's ratings
 
+
+Residential
+GIVES
+4 ROOMS per BOXFLOOR
+1.75 PEOPLE per ROOM
+    1.75 PEOPLE in a SINGLE
+    3.5 PEOPLE in a DOUBLE
+
+DEMANDS
+1 PERSON demands
+    1 NIGHT Parking Space
+    4 RETAIL Place
+    1 OFFICE Place
+
+
+Retail
+GIVES
+12 SLOTS per FLOOR
+2 OFFICE per FLOOR
+
+DEMANDS
+14 DAY PARKING per FLOOR
+14 PEOPLE per FLOOR
+
+Block
+GIVES 12 D/N PARKING
+
+
+
+OFFICE
+GIVES
+8 OFFICE per FLOOR
+1 RETAIL per FLOOR
+
+DEMANDS
+10 DAY PARKING per FLOOR
+2 RETAIL per FLOOR

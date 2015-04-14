@@ -8,6 +8,7 @@ import vars
 import engine
 from pygame.locals import *
 
+
 def main():
     drawList = []
     #Realtor Domain title
@@ -38,6 +39,7 @@ def main():
             drawList[i].Draw()
         pygame.display.update()
         vars.FPSCLOCK.tick(vars.FPS)
+
 
 def Terminate():
     pygame.quit()

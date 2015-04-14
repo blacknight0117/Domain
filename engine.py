@@ -30,17 +30,18 @@ def main(devCheck=False):
             if event.type == QUIT:
                 Terminate()
             elif event.type == MOUSEBUTTONDOWN:
-                temp = theMap.Click(event.pos)
-                if temp is not None:
+                newBuilding, newBlock = theMap.Click(event.pos)
+                if newBuilding is not None:
                     if currentSelected.selected is not None:
                         currentSelected.selected.highlight = False
-                    currentSelected.Init(temp)
+                    currentSelected.Init(newBuilding, newBlock)
                     currentSelected.selected.highlight = True
                 else:
                     currentSelected.Input(event.type, event.pos)
 
         currentSelected.Update()
         player.Update()
+        theMap.Update()
         
         vars.DISP.fill(vars.VDKGREY)
         player.DrawPlayer()
@@ -69,6 +70,8 @@ def Parser(fileName, aMap):
 class Selected():
     def __init__(self):
         self.selected = None
+        self.selectedBlock = None
+        self.blockInfo = []
         self.title = None
         self.address = None
         self.type = None
@@ -81,9 +84,10 @@ class Selected():
         self.buttons = []
         self.empty = False
 
-    def Init(self, newSelected):
+    def Init(self, newSelected, newBlock):
         self.__init__()
         self.selected = newSelected
+        self.selectBlock = newBlock
         self.selected.dirty = True
         if self.selected.floors == 0:
             self.empty = True
@@ -111,6 +115,7 @@ class Selected():
 
     def Update(self):
         if self.selected is not None and self.selected.dirty:
+            self.blockInfo = []
             #Update all the selected info text
             self.title = vars.Text(self.selected.name, None, 48,
                                    vars.WHITE, vars.VDKGREY)
@@ -152,7 +157,8 @@ class Selected():
             if self.selected.owner == player.name:
                 self.buttons[0].void = True
                 self.buttons[1].void = False
-                if self.selected.additionalFloor:
+                if (self.selected.additionalFloor or
+                        self.selected.type == 'Empty'):
                     self.buttons[2].void = True
                 if (self.selected.type != 'Retail' and
                         self.selected.type != 'Residential'):
@@ -212,11 +218,13 @@ class Selected():
                     elif i == 4:
                         player.cash -= vars.COSTDESTROY[self.selected.floors+int(self.selected.additionalFloor)-1]
                         player.dirty = True
-                        self.Init(theMap.blocks[self.selected.block].DestroyBuilding(self.selected.index))
+                        self.Init(theMap.blocks[self.selected.block].DestroyBuilding(self.selected.index),
+                                  self.selectedBlock)
                     elif i == 5:
                         player.cash -= vars.COSTBUILD
                         player.dirty = True
-                        self.Init(theMap.blocks[self.selected.block].AddBuilding(self.selected.index))
+                        self.Init(theMap.blocks[self.selected.block].AddBuilding(self.selected.index),
+                                  self.selectedBlock)
 
     def Draw(self):
         pygame.draw.rect(vars.DISP, vars.WHITE,
@@ -238,6 +246,7 @@ class Map():
     def __init__(self):
         self.size = 0
         self.blockSize = 0
+        self.time = 0
         self.blocks = []
         self.showFloors = True
         self.showSpecial = True
@@ -249,6 +258,8 @@ class Map():
                                            pygame.Rect(980, vars.WINH-35, 65, 25)))
         self.mapButtons.append(vars.Button('Owned',
                                            pygame.Rect(1060, vars.WINH-35, 60, 25)))
+        self.mapButtons.append(vars.Button('TimeStep',
+                                           pygame.Rect(910, vars.WINH-80, 65, 25)))
 
     def AddBlock(self, aLine):
         if len(aLine) != (self.blockSize*self.blockSize)+1:
@@ -274,11 +285,11 @@ class Map():
                 for j in range(len(self.blocks[i].buildings)):
                     for k in range(len(self.blocks[i].buildings[j].rects)):
                         if self.blocks[i].buildings[j].rects[k].collidepoint(aPos):
-                            return self.blocks[i].buildings[j]
+                            return self.blocks[i].buildings[j], self.blocks[i]
                 for j in range(len(self.blocks[i].emptyPlots)):
                     for k in range(len(self.blocks[i].emptyPlots[j].rects)):
                         if self.blocks[i].emptyPlots[j].rects[k].collidepoint(aPos):
-                            return self.blocks[i].emptyPlots[j]
+                            return self.blocks[i].emptyPlots[j], self.blocks[i]
         for i in range(len(self.mapButtons)):
             if self.mapButtons[i].LocCollide(aPos):
                 if i == 0:
@@ -287,7 +298,9 @@ class Map():
                     self.showSpecial = not self.showSpecial
                 elif i == 2:
                     self.showOwned = not self.showOwned
-        return None
+                elif i == 3:
+                    self.time += 1
+        return None, None
 
     def Draw(self):
         pygame.draw.rect(vars.DISP, vars.BLACK, (0, 0, 900, 900))
@@ -295,24 +308,72 @@ class Map():
             self.blocks[i].Draw()
         for i in range(len(self.mapButtons)):
             self.mapButtons[i].Draw()
+        temp = vars.Text(str(self.time), None, 24)
+        temp.rect.centery = self.mapButtons[3].rect.centery
+        temp.rect.left = self.mapButtons[3].rect.right + 10
+        temp.Draw()
+
+    def Update(self):
+        for i in range(len(self.blocks)):
+            self.blocks[i].ClearSupply()
+        for i in range(len(self.blocks)):
+            temp = [-6, -5, -4, -1, 1, 4, 5, 6]
+            if i == 0 or i == 4 or i == 20 or i == 24:
+                pass
+            randStart = random.randrange(0, 9, 1)
+            for j in range(len(self.blocks[i].supply)):
+                pass
+
 
 
 class Block():
-    def __init__(self, theLoc):
-        self.loc = theLoc
+    def __init__(self, theIndex):
+        self.index = theIndex
         self.buildings = []
         self.emptyPlots = []
-        self.dirty = False              # Do we need to update building demands?
-        #column 1 is current levels, column 2 is max levels,
-        self.supply = []                # retail, res, parking, office, special
-        tempx = (self.loc % 5) * 184
-        tempy = int(self.loc / 5) * 184
+        self.dirty = True              # Do we need to update building demands?
+        #column 1 is current levels, column 2 is levels used every month/week
+        self.supply = []                # day park, night park, retail, office, special bool
+        self.influence = []             # day park, night park, retail, office, special bool
+
+        tempx = (self.index % 5) * 184
+        tempy = int(self.index / 5) * 184
         self.rect = pygame.Rect(tempx, tempy, 164, 164)
 
-    def Update(self):
-        for i in range(len(self.buildings)):
-        #TODO: Update buildings Influence by Block
-            pass
+    #Refresh base influence created by buildings
+    def Refresh(self):
+        if self.dirty:
+            self.influence = [8, 8, 0, 0, 0]
+            for i in range(len(self.buildings)):
+                if self.buildings[i].type == 'Residential':
+                    self.influence += len(self.buildings[i].tenants) * \
+                                       [-1, -1, -4, -1, 0]
+                elif self.buildings[i].type == 'Retail':
+                    self.influence += (self.buildings[i].floors +
+                                       int(self.buildings[i].additionalFloor)) * \
+                                       len(self.buildings[i].spaces) * \
+                                       [-14, -14, 12, 2, 0]
+                elif self.buildings[i].type == 'Parking':
+                    self.influence += (self.buildings[i].floors +
+                                       int(self.buildings[i].additionalFloor)) * \
+                                       len(self.buildings[i].spaces) * \
+                                       [10, 10, 0, 1, 0]
+                elif self.buildings[i].type == 'Office':
+                    self.influence += (self.buildings[i].floors +
+                                       int(self.buildings[i].additionalFloor)) * \
+                                       len(self.buildings[i].spaces) * \
+                                       [11, 0, -2, 10, 0]
+                elif self.buildings[i].type == 'Special':
+                    self.influence += (self.buildings[i].floors +
+                                       int(self.buildings[i].additionalFloor)) * \
+                                       len(self.buildings[i].spaces) * \
+                                       [-6, -6, -24, -6, 0]
+            self.dirty = False
+
+    #Resetting current supply count for new end turn
+    def ClearSupply(self):
+        self.Refresh()
+        self.supply = copy.deepcopy(self.influence)
 
     def Draw(self):
         pygame.draw.rect(vars.DISP, vars.LTGREY, self.rect)
@@ -322,16 +383,18 @@ class Block():
             self.emptyPlots[i].Draw()
 
     def DestroyBuilding(self, buildingIndex):
+        self.dirty = True
         destroyed = self.buildings.pop(buildingIndex)
         for i in range(len(destroyed.spaces)):
-            temp = Building(self.loc, len(self.emptyPlots),
-                            [destroyed.spaces[i]], 'Empty',
-                            None, 0, False)
-            temp.owner = destroyed.owner
-            self.emptyPlots.append(temp)
-        return temp
+            tempBuilding = Building(self.index, len(self.emptyPlots),
+                                    [destroyed.spaces[i]], 'Empty',
+                                    None, 0, False)
+            tempBuilding.owner = destroyed.owner
+            self.emptyPlots.append(tempBuilding)
+        return tempBuilding
 
     def AddBuilding(self, index):
+        self.dirty = True
         temp = self.emptyPlots.pop(index)
         if len(self.emptyPlots) != 0:
             for i in range(len(self.emptyPlots)-index):
